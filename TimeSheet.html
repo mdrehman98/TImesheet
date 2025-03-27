@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Home</title>
+<link rel="stylesheet" href="css/timesheet.css">
+</head>
+<body>
+  <img src="timesheet.jpg" alt="Horizontal Banner" class="banner" style="width: 100%">
+  <script src="tablebtns.js"></script>
+  <script src="createManualTask.js"></script>
+  <div id="header">
+  <h2>Select Category / Create Task :</h2>
+  <button id="createTask-btn" onclick=createManualTask(window.name)> Create Task</button>
+  </div>
+  <div id="checkboxContainer"></div>
+  <div id="task-title">
+    <h2>Tasks to Select:</h2>
+  </div>
+  <div id="taskDropdownContainer"></div>
+  <h2>Task List</h2>
+  <div id="DateDropdownContainer"></div>
+  <button id="filterTasksBtn" onclick=filterTasks()>Filter Tasks</button>
+  <select id="FilterTask">
+    <option value="All">All</option>
+    <option value="Monday">Monday</option>
+    <option value="Tuesday">Tuesday</option>
+    <option value="Wednesday">Wednesday</option>
+    <option value="Thursday">Thursday</option>
+    <option value="Friday">Friday</option>
+</select>
+  <button id="ExportExcelBtn">Export</button>
+  <button id="clearTasksBtn">Clear Tasks</button>
+  <div id="tasks"></div>
+
+
+  <script>
+    window.name=getName('name')
+    var name = getName('name');
+    var data = [
+      { category: "Category 1", task: "Task 1" },
+      { category: "Category 1", task: "Task 2" },
+      { category: "Category 2", task: "Task 3" },
+      { category: "Category 3", task: "Task 4" },
+      { category: "Category 4", task: "Task 7" }
+    ];
+
+    //var dataJson = localStorage.getItem('ataur.json')
+    
+
+    
+    
+    var categories = {};
+    data.forEach(function (row) {
+      var category = row.category;
+      var task = row.task;
+      if (!categories[category]) {
+        categories[category] = [];
+      }
+      categories[category].push(task);
+    });
+    
+    var checkboxContainer = document.getElementById('checkboxContainer');
+    var checkboxRow = document.createElement('div'); // Create a new row
+    var checkboxes = [];
+    var count = 0; // Counter to keep track of the number of checkboxes
+    for (var category in categories) {
+      var checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.value = category;
+      checkboxes.push(checkbox)
+      checkbox.onchange = function () {
+        if(this.checked){
+        // Uncheck all other checkboxes
+        checkboxes.forEach(function(cb) {
+          if (cb !== this) {
+            cb.checked = false;
+          }
+        },this);
+        showTasksDropdown(this.value, categories[this.value]);
+      }
+      else {
+        taskDropdownContainer.innerHTML = ''
+      }};
+      var label = document.createElement('label');
+      label.textContent = category;
+      checkboxContainer.appendChild(checkbox);
+      checkboxContainer.appendChild(label);
+      checkboxContainer.appendChild(document.createElement('br'));
+      count++; // Increment the counter
+
+    // If the maximum number of checkboxes per row is reached or all categories are processed
+      if (count === 4 || count === Object.keys(categories).length) {
+        // Append the current row to the checkbox container
+        checkboxContainer.appendChild(checkboxRow);
+        
+        // Reset the counter and create a new row
+        count = 0;
+        checkboxRow = document.createElement('div');
+      }
+  }
+    
+
+    
+    function showTasksDropdown(category, tasks) {
+      var taskDropdownContainer = document.getElementById('taskDropdownContainer');
+      taskDropdownContainer.innerHTML = '';
+      var button = document.createElement('button');
+      button.id="submitTaskBtn"
+      button.class="submit-btn"
+      button.type="submit"
+      button.textContent = "Submit"
+        
+      var select = document.createElement('select');
+      tasks.forEach(function (task) {
+        var option = document.createElement('option');
+        option.value = task;
+        option.textContent = task;
+        select.appendChild(option);
+      });
+
+      button.onclick= function () {
+        createTask()
+      }
+      taskDropdownContainer.appendChild(select);
+      taskDropdownContainer.appendChild(button)
+    };
+
+    function createTask() {
+        var selectedTask = document.querySelector('#taskDropdownContainer select').value;
+        
+        var now = new Date();
+        var day = now.getDate();
+        var month = now.getMonth() + 1; 
+        var year = now.getFullYear();
+        var dayOfWeekNumber = now.getDay();
+
+    
+        var dayOfWeekNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        var dayOfWeek = dayOfWeekNames[dayOfWeekNumber];
+        var dateString = year + '-' + (month < 10 ? '0' + month : month) + '-' + (day < 10 ? '0' + day : day) + ','+ dayOfWeek;
+    
+        
+        var hours = now.getHours();
+        var minutes = now.getMinutes();
+        var seconds = now.getSeconds();
+    
+        var formattedHours = (hours < 10 ? '0' + hours : hours);
+        var formattedMinutes = (minutes < 10 ? '0' + minutes : minutes);
+        var formattedSeconds = (seconds < 10 ? '0' + seconds : seconds);
+        var timeString = formattedHours + ':' + formattedMinutes + ':' + formattedSeconds;
+        
+        var existingDataJSON = localStorage.getItem(name+'.json');
+        var existingData = existingDataJSON ? JSON.parse(existingDataJSON) : [];
+    
+        console.log(existingData)
+        var index = existingData.length > 0 ? existingData[existingData.length - 1].index + 1 : 1;
+
+        
+        var taskData = {
+            index: index,
+            date: dateString,
+            task: selectedTask,
+            startTime: timeString,
+            endTime: '' 
+        };
+      
+        if (existingData.length > 0) {
+            var latestTask = existingData[existingData.length - 1];
+            latestTask.endTime = timeString;
+        }
+        
+        existingData.push(taskData);
+        localStorage.setItem(name+'.json', JSON.stringify(existingData));
+        
+        showTasks();
+    }
+    
+
+    function showTasks(dayFilter){
+
+      var tasksTable = document.createElement('table');
+      tasksTable.classList.add('tasks-table'); // Add a class for styling purposes
+      tasksTable.innerHTML = `
+        <tr>
+          <th>Date</th>
+          <th>Task</th>
+          <th>Start Time</th>
+          <th>End Time</th>
+          <th>Actions</th>
+        </tr>
+      `;
+      var tasks=document.getElementById('tasks')
+      tasks.innerHTML = '';
+      var existingDataJSON = localStorage.getItem(name+'.json');
+      if (existingDataJSON) {
+          if (dayFilter){
+            var existingData=dayFilter 
+          }
+          else{
+            var existingData = JSON.parse(existingDataJSON);
+          }
+          /*
+          existingData.sort(function(a, b) {
+            // Sort by day
+            if (a.date !== b.date) {
+                return a.date.localeCompare(b.date);
+            }
+            // Sort by start time
+            if (a.startTime !== b.startTime) {
+                return a.startTime.localeCompare(b.startTime);
+            }
+            // Sort by end time if start times are equal
+            return a.endTime.localeCompare(b.endTime);
+        });
+        */
+          existingData.forEach(function(taskData, index) {
+            var row = tasksTable.insertRow();
+            row.innerHTML = `
+                          <td id="date_${index}">${taskData.date}</td>
+                          <td id="task_${index}">${taskData.task}</td>
+                          <td id="startTime_${index}">${taskData.startTime}</td>
+                          <td id="endTime_${index}">${taskData.endTime}</td>
+                          <td id="action_${index}">
+                          <button id="finishTasksBtn" class="finish-task-btn" data-index="${taskData.index}">Finish Task</button>
+                          <button id="editTasksBtn_${index}" class="edit-task-btn" data-index="${index}">Edit Task</button>
+                          <button id="deleteTasksBtn_${index}" class="delete-task-btn" data-index="${index}">Delete Task</button>
+                        </td>
+                      `;
+                (function(index,taskData) {
+            
+                    row.querySelector('.edit-task-btn').addEventListener('click', createEditHandler(index,taskData,name))
+
+                })(index,taskData);
+
+
+                (function(taskData) {
+            
+                  row.querySelector('.delete-task-btn').addEventListener('click', deleteTask(taskData,name))
+
+              })(taskData);
+
+              tasks.appendChild(tasksTable);
+              
+          });
+      } else {
+          tasks.innerHTML = '';
+      }
+  }
+  
+    function clearTasks(){
+        document.getElementById('clearTasksBtn').addEventListener("click",function(){
+            console.log('cleared')
+            tasks.innerHTML = '';
+            localStorage.removeItem(name+'.json');
+            showTasks()
+
+        })
+
+    }
+
+    function filterTasks(){
+      var tasks=document.getElementById('tasks')
+      tasks.innerHTML = '';
+      var day=document.getElementById('FilterTask').value
+      var existingDataJSON = localStorage.getItem(name+'.json');
+      var existingData = JSON.parse(existingDataJSON);
+
+      if (day === "All") {
+        showTasks();
+    } else if (existingData) {
+        var filteredTasks = existingData.filter(function(taskData) {
+            return taskData.date.includes(day);
+        });
+        showTasks(filteredTasks);
+    }
+    }
+  
+
+   
+
+  function exportToExcel() {
+    document.getElementById('ExportExcelBtn').addEventListener('click', function () {
+        // Prepare data for export
+        var localStorageData = localStorage.getItem(name+'.json');
+        if (!localStorageData) {
+            alert("No data found in localStorage.");
+            return;
+        }
+        var data = JSON.parse(localStorageData);
+        
+        // Prepare Excel data
+        var excelData = {};
+        var days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+        var timeIntervals = [];
+        for (var i = 8; i <= 17; i++) {
+            var startTime = `${i}:00:00`;
+            var endTime = `${i+1}:00:00`;
+            timeIntervals.push(`${startTime} - ${endTime}`);
+        }
+        days.forEach(function (day) {
+            excelData[day] = {};
+            timeIntervals.forEach(function (timeInterval) {
+                excelData[day][timeInterval] = [];
+            });
+        });
+
+        
+        // Populate Excel data with tasks
+        data.forEach(function (row) {
+          var date = row.date.split(',')[1]; // Extract the day part from the date string
+          
+          var startTime = row.startTime;
+          var endTime=row.endTime;
+          var task = row.task;
+          
+          
+          if (days.includes(date)) {
+              var sTime = parseInt(startTime.split(':')[0]);
+              var eTime = parseInt(endTime.split(':')[0]);
+              eTime+=1
+              //for (var hour = sTime; hour <= eTime; hour++){
+              timeIntervals.forEach(function (timeInterval) {
+                  var intervalStart = parseInt(timeInterval.split(' - ')[0].split(':')[0]);
+                  
+                  var intervalEnd = parseInt(timeInterval.split(' - ')[1].split(':')[0]);
+                  
+                  if (sTime <= intervalStart && eTime >= intervalEnd) {
+                    //console.log("True")
+                    excelData[date][timeInterval].push(task);
+                }
+                
+              });
+          }
+      });
+
+      
+        
+        // Convert Excel data to CSV format
+        var csvContent = "data:text/csv;charset=utf-8,";
+        // Header row
+        csvContent += "Day,                  ,Time Interval,                ,Task Name,               "; 
+        // Data rows
+        
+        for (const day in excelData) {
+            var count = 0 ;
+            console.log(day)
+            csvContent+=`\n${day},`
+            const timeIntervals = excelData[day];
+            for (const timeInterval in timeIntervals) {
+              if (count==0){
+              csvContent+=`,${timeInterval},,${timeIntervals[timeInterval]}\n`
+              }
+              else{
+                csvContent += "," + "," + timeInterval + "," + "," + timeIntervals[timeInterval] + "\n"; 
+              }
+              count+=1
+            }
+        }
+
+        
+        // Create a temporary link element
+        var link = document.createElement("a");
+        link.setAttribute("href", encodeURI(csvContent));
+        link.setAttribute("download", "data.csv");
+
+        // Trigger download
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    });
+}
+
+function getName(name) {
+  name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
+  var regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
+  var results = regex.exec(window.location.search);
+  return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
+}
+
+      
+
+
+    finishTask(name);
+    //deleteTask();
+    clearTasks();
+    showTasks();
+    exportToExcel();
+        
+  </script>
+</body>
+</html>
+

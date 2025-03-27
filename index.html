@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TimeSheet Portal</title>
+<link rel="stylesheet" href="css/index.css">
+</head>
+<body>
+  <h1 class="timesheet-header">TimeSheet</h1>
+  <div class="container">
+    <h2>Enter Your Name</h2>
+    <form id="nameForm">
+        <label for="name">Name:</label>
+        <input type="text" id="name" name="name">
+        <button type="submit">Submit</button>
+    </form>
+  </div>
+
+  <script>
+    document.getElementById('nameForm').addEventListener('submit', function(event) {
+    event.preventDefault();
+    var name = document.getElementById('name').value;
+    var existingDataJSON = localStorage.getItem(name + '.json');
+    if (!existingDataJSON){
+
+    var data = [];
+    var jsonData = JSON.stringify(data);
+
+    localStorage.setItem(name + ".json", jsonData);
+
+    // Inform user
+    //alert("Data saved to local storage as " + name + ".json");
+
+    }
+    window.location.href = "TimeSheet.html?name=" + encodeURIComponent(name);
+  }) 
+  </script>
+</body>
+</html>
